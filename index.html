@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Cek ID yang Tidak Cocok</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    input { margin-bottom: 10px; }
+    table { border-collapse: collapse; margin-top: 20px; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background: #f0f0f0; }
+</style>
+</head>
+<body>
+
+<h2>Deposit PGA Pencari ID Anomali</h2>
+
+<label><b>Upload File PGA IDN (CSV)</b></label><br>
+<input type="file" id="file1" accept=".csv"><br><br>
+
+<label><b>Upload File PGA MOTION (XLSX)</b></label><br>
+<input type="file" id="file2" accept=".xlsx" multiple>
+
+<button onclick="processFiles()">Proses</button>
+
+<div id="result"></div>
+
+<script src="script.js"></script>
+
+</body>
+</html>
