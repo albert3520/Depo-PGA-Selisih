@@ -1,3 +1,4 @@
+// ========== Fungsi Deposit ==========
 function readCSV(file, callback) {
     const reader = new FileReader();
     reader.onload = function(e) {
@@ -128,7 +129,7 @@ function compareResults(idnMap, motionMap, dateMismatchList) {
 }
 
 function showResult(miss1, miss2, dateMismatch) {
-    let html = "<h3>Hasil Perbandingan</h3>";
+    let html = "<h3>Hasil Anomali Deposit</h3>";
 
     html += "<h4>ID Ada di IDN tapi Tidak Ada di Motion</h4>";
     html += arrayToTable(miss1);
@@ -181,3 +182,179 @@ function formatNumber(num) {
     if (num === "" || isNaN(num)) return num;
     return Number(num).toLocaleString("en-US");
 }
+
+
+// ========== Fungsi Withdraw ==========
+function processWithdraw() {
+    const file1 = document.getElementById("wfile1").files[0];
+    const file2 = document.getElementById("wfile2").files;
+
+    if (!file1 || file2.length === 0) {
+        alert("Harap upload File Pembukuan dan File PGA Motion!");
+        return;
+    }
+
+    // ========== BACA FILE 1 (XLSX) ==========
+    readXLSX(file1, sheet1 => {
+        let idnData = {};
+
+        for (let i = 1; i < sheet1.length; i++) {
+            const row = sheet1[i];
+            const username = row[2];   // kolom C
+            const nominal = row[7];    // kolom H
+
+            if (!username) continue;
+
+            const u = String(username).trim();
+            if (u.toLowerCase() === "username") continue; // skip header
+
+            // Bersihkan jadi angka saja
+            const clean = String(nominal).replace(/[^0-9]/g, "");
+            if (!clean) continue; // jangan masukkan nominal kosong → menghindari 0 bug
+
+            if (!idnData[u]) idnData[u] = [];
+            idnData[u].push(Number(clean));
+        }
+
+        // ========== BACA FILE 2 (XLSX) ==========
+        let motionData = {};
+        let processed = 0;
+
+        for (let f = 0; f < file2.length; f++) {
+            readXLSX(file2[f], sheet2 => {
+
+                for (let i = 1; i < sheet2.length; i++) {
+                    const row = sheet2[i];
+
+                    const desc = row[7];   // kolom H
+                    const nominal = row[9]; // kolom J (nominal motion)
+
+                    if (!desc) continue;
+
+                    const firstWord = String(desc).trim().split(" ")[0];
+                    if (!firstWord) continue;
+
+                    // Bersihkan nominal
+                    const clean2 = String(nominal).replace(/[^0-9]/g, "");
+                    if (!clean2) continue;
+
+                    if (!motionData[firstWord]) motionData[firstWord] = [];
+                    motionData[firstWord].push(Number(clean2));
+                }
+
+                processed++;
+
+                if (processed === file2.length) {
+                    compareWithdraw(idnData, motionData);
+                }
+            });
+        }
+    });
+}
+
+function compareWithdraw(idnData, motionData) {
+    let allIDs = new Set([...Object.keys(idnData), ...Object.keys(motionData)]);
+    let anomalies = [];
+
+    allIDs.forEach(id => {
+        const list1 = idnData[id] || [];
+        const list2 = motionData[id] || [];
+
+        if (list1.length !== list2.length) {
+
+            // copy list utk saling hapus nominal yang match
+            let temp1 = [...list1];
+            let temp2 = [...list2];
+
+            // hapus nominal yg cocok
+            for (let i = temp1.length - 1; i >= 0; i--) {
+                const idx = temp2.indexOf(temp1[i]);
+                if (idx !== -1) {
+                    temp1.splice(i, 1);
+                    temp2.splice(idx, 1);
+                }
+            }
+
+            anomalies.push({
+                id: id,
+                f1: list1.length,
+                f2: list2.length,
+                missingFromFile2: temp1, // nominal lebih di File1
+                missingFromFile1: temp2  // nominal lebih di File2
+            });
+        }
+    });
+
+    showWithdrawResult(anomalies);
+}
+
+function showWithdrawResult(list) {
+    let html = "<h3>Hasil Anomali Withdraw</h3>";
+
+    if (list.length === 0) {
+        html += "<p><i>Tidak ada anomali</i></p>";
+        document.getElementById("wresult").innerHTML = html;
+        return;
+    }
+
+    html += `
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Jumlah di Pembukuan</th>
+            <th>Jumlah di Motion</th>
+            <th>Nominal lebih di Pembukuan</th>
+            <th>Nominal lebih di Motion</th>
+        </tr>
+    `;
+
+    list.forEach(a => {
+        html += `
+        <tr>
+            <td>${a.id}</td>
+            <td>${a.f1}</td>
+            <td>${a.f2}</td>
+            <td>${a.missingFromFile2.length ? a.missingFromFile2.map(formatNominal).join("<br>") : "-"}</td>
+            <td>${a.missingFromFile1.length ? a.missingFromFile1.map(formatNominal).join("<br>") : "-"}</td>
+        </tr>
+        `;
+    });
+
+    html += "</table>";
+
+    document.getElementById("wresult").innerHTML = html;
+}
+
+function formatNominal(n) {
+    if (!n || isNaN(n)) return "-";
+    return Number(n).toLocaleString("en-US"); 
+}
+
+// ================= HALAMAN SWITCHER ===================
+function showPage(page) {
+    document.getElementById("page-deposit").style.display = "none";
+    document.getElementById("page-withdraw").style.display = "none";
+
+    if (page === "deposit") {
+        document.getElementById("page-deposit").style.display = "block";
+    } else {
+        document.getElementById("page-withdraw").style.display = "block";
+    }
+}
+// ======================================================
+
+// ========== POPUP HELP ==========
+function openHelp() {
+    document.getElementById("helpModal").style.display = "block";
+}
+
+function closeHelp() {
+    document.getElementById("helpModal").style.display = "none";
+}
+
+window.onclick = function(event) {
+    const modal = document.getElementById("helpModal");
+    if (event.target === modal) {
+        modal.style.display = "none";
+    }
+};
