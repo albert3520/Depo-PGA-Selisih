@@ -13,17 +13,71 @@
 
 <div id="info-elb">Jika ada masalah Info ELB</div>
 
-<h2>Deposit PGA Pencari ID Anomali</h2>
+<!-- ================ MENU BARU ================ -->
+<div id="nav-menu" style="margin-bottom:25px;">
+    <button onclick="showPage('deposit')">Deposit</button>
+    <button onclick="showPage('withdraw')">Withdraw</button>
+    <button onclick="openHelp()">Cara Pakai</button>
+</div>
+<!-- ============================================ -->
 
-<label><b>Upload File PGA IDN (CSV)</b></label>
-<input type="file" id="file1" accept=".csv">
+<!-- ============ HALAMAN DEPOSIT (ASLI) ============ -->
+<div id="page-deposit" class="page">
+    <h2>Deposit PGA Pencari ID Anomali</h2>
 
-<label><b>Upload File PGA MOTION (XLSX)</b></label>
-<input type="file" id="file2" accept=".xlsx" multiple>
+    <label><b>Upload File PGA IDN (CSV)</b></label>
+    <input type="file" id="file1" accept=".csv">
 
-<button onclick="processFiles()">Proses</button>
+    <label><b>Upload File PGA MOTION (XLSX)</b></label>
+    <input type="file" id="file2" accept=".xlsx" multiple>
 
-<div id="result"></div>
+    <button onclick="processFiles()">Proses</button>
+
+    <div id="result"></div>
+</div>
+<!-- ================================================ -->
+
+<!-- ============ HALAMAN WITHDRAW (BARU) ============ -->
+<div id="page-withdraw" class="page" style="display:none;">
+    <h2>Withdraw PGA Pencari ID Anomali</h2>
+
+    <label><b>Upload File Pembukuan (XLSX)</b></label>
+    <input type="file" id="wfile1" accept=".xlsx">
+
+    <label><b>Upload File PGA MOTION (XLSX)</b></label>
+    <input type="file" id="wfile2" accept=".xlsx" multiple>
+
+    <button onclick="processWithdraw()">Proses</button>
+
+    <div id="wresult"></div>
+</div>
+<!-- ================================================ -->
+
+<!-- ===================== POPUP HELP ===================== -->
+<div id="helpModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeHelp()">&times;</span>
+        <h2>Panduan Pemakaian</h2>
+
+        <div id="helpText">
+            <!-- Kamu isi sendiri -->
+            <p><b>Cara Deposit:</b></p>
+            <p>1. Download File Payment Gateway dan Riwayat PGA di Motion</p>
+            <p>2. Untuk Riwayat PGA Download Semua Vendor yang Dipakai</p>
+            <p>3. Upload File Payment Gateway</p>
+            <p>4. Upload File Riwayat PGA Motion Semua Bisa Pilih Lebih Dari Satu</p>
+            <p>5. Pastikan File Upload Pada Tempat Benar Lalu Klik Proses</p>
+            <br>
+            <p><b>Cara Withdraw:</b></p>
+            <p>1. Download File Pembukuan Pada Laporan Bank WD PGA</p>
+            <p>2. Download File Riwayat WD PGA Untuk Riwayat PGA Download Semua Vendor yang Dipakai</p>
+            <p>3. Upload File Pembukuan</p>
+            <p>4. Upload File Riwayat WD PGA Motion Semua Bisa Pilih Lebih Dari Satu</p>
+            <p>5. Pastikan File Upload Pada Tempat Benar Lalu Klik Proses</p>
+        </div>
+    </div>
+</div>
+<!-- ======================================================= -->
 
 <script src="script.js"></script>
 
