@@ -131,13 +131,102 @@ function compareResults(idnMap, motionMap, dateMismatchList) {
 function showResult(miss1, miss2, dateMismatch) {
     let html = "<h3>Hasil Anomali Deposit</h3>";
 
+    // ==============================
+    //        TABEL MISS 1
+    // ==============================
     html += "<h4>ID Ada di IDN tapi Tidak Ada di Motion</h4>";
-    html += arrayToTable(miss1);
 
+    if (miss1.length === 0) {
+        html += `<p><i>Tidak ada anomali</i></p>`;
+    } else {
+        let totalIDN_1 = 0;
+        let totalMotion_1 = 0;
+
+        let table1 = `
+            <table>
+                <tr>
+                    <th>ID</th>
+                    <th>Nominal di IDN</th>
+                    <th>Nominal di Motion</th>
+                </tr>
+        `;
+
+        miss1.forEach(a => {
+            if (a.idn !== "-") totalIDN_1 += Number(String(a.idn).replace(/[^0-9]/g, ""));
+            if (a.motion !== "-") totalMotion_1 += Number(String(a.motion).replace(/[^0-9]/g, ""));
+
+            table1 += `
+                <tr>
+                    <td>${a.id}</td>
+                    <td>${a.idn !== "-" ? formatNominal(a.idn) : "-"}</td>
+                    <td>${a.motion !== "-" ? formatNominal(a.motion) : "-"}</td>
+                </tr>
+            `;
+        });
+
+        table1 += `
+            <tr style="font-weight:bold; background:#f5f5f5;">
+                <td>TOTAL</td>
+                <td>${formatNominal(totalIDN_1)}</td>
+                <td>${formatNominal(totalMotion_1)}</td>
+            </tr>
+        `;
+
+        table1 += "</table>";
+        html += table1;
+    }
+
+
+    // ==============================
+    //        TABEL MISS 2
+    // ==============================
     html += "<h4>ID Ada di Motion tapi Tidak Ada di IDN</h4>";
-    html += arrayToTable(miss2);
 
-    // ====== TABEL BARU: TANGGAL TIDAK SAMA ======
+    if (miss2.length === 0) {
+        html += `<p><i>Tidak ada anomali</i></p>`;
+    } else {
+
+        let totalIDN_2 = 0;
+        let totalMotion_2 = 0;
+
+        let table2 = `
+            <table>
+                <tr>
+                    <th>ID</th>
+                    <th>Nominal di IDN</th>
+                    <th>Nominal di Motion</th>
+                </tr>
+        `;
+
+        miss2.forEach(a => {
+            if (a.idn !== "-") totalIDN_2 += Number(String(a.idn).replace(/[^0-9]/g, ""));
+            if (a.motion !== "-") totalMotion_2 += Number(String(a.motion).replace(/[^0-9]/g, ""));
+
+            table2 += `
+                <tr>
+                    <td>${a.id}</td>
+                    <td>${a.idn !== "-" ? formatNominal(a.idn) : "-"}</td>
+                    <td>${a.motion !== "-" ? formatNominal(a.motion) : "-"}</td>
+                </tr>
+            `;
+        });
+
+        table2 += `
+            <tr style="font-weight:bold; background:#f5f5f5;">
+                <td>TOTAL</td>
+                <td>${formatNominal(totalIDN_2)}</td>
+                <td>${formatNominal(totalMotion_2)}</td>
+            </tr>
+        `;
+
+        table2 += "</table>";
+        html += table2;
+    }
+
+
+    // ==============================
+    //      DATE MISMATCH
+    // ==============================
     html += "<h4>Perbedaan Tanggal Diproses</h4>";
     html += dateMismatchToTable(dateMismatch);
 
@@ -160,7 +249,7 @@ function arrayToTable(arr) {
 }
 
 function dateMismatchToTable(arr) {
-    if (arr.length === 0) return "<p><i>Tidak ada</i></p>";
+    if (arr.length === 0) return "<p><i>Tidak ada anomali</i></p>";
 
     let html = "<table><tr><th>ID</th><th>Tanggal Dibuat</th><th>Tanggal Dibayar</th></tr>";
 
@@ -308,26 +397,63 @@ function showWithdrawResult(list) {
         </tr>
     `;
 
+    let totalPembukuan = 0;
+    let totalMotion = 0;
+
     list.forEach(a => {
+
+        // hitung total bawah
+        a.missingFromFile2.forEach(v => totalPembukuan += Number(v));
+        a.missingFromFile1.forEach(v => totalMotion += Number(v));
+
         html += `
         <tr>
             <td>${a.id}</td>
             <td>${a.f1}</td>
             <td>${a.f2}</td>
-            <td>${a.missingFromFile2.length ? a.missingFromFile2.map(formatNominal).join("<br>") : "-"}</td>
-            <td>${a.missingFromFile1.length ? a.missingFromFile1.map(formatNominal).join("<br>") : "-"}</td>
+            <td>
+                ${
+                    a.missingFromFile2.length
+                    ? a.missingFromFile2.map(formatNominal).join("<br>")
+                    : "-"
+                }
+            </td>
+            <td>
+                ${
+                    a.missingFromFile1.length
+                    ? a.missingFromFile1.map(formatNominal).join("<br>")
+                    : "-"
+                }
+            </td>
         </tr>
         `;
     });
+
+    // ====== TOTAL DI BAWAH TABEL (di kolom masing-masing) ======
+    html += `
+        <tr style="font-weight:bold; background:#f5f5f5;">
+            <td colspan="3">TOTAL</td>
+            <td>${formatNominal(totalPembukuan)}</td>
+            <td>${formatNominal(totalMotion)}</td>
+        </tr>
+    `;
 
     html += "</table>";
 
     document.getElementById("wresult").innerHTML = html;
 }
 
-function formatNominal(n) {
-    if (!n || isNaN(n)) return "-";
-    return Number(n).toLocaleString("en-US"); 
+function formatNominal(value) {
+    if (value === null || value === undefined) return "-";
+
+    // ubah ke string dulu
+    let str = String(value);
+
+    // ambil angka murni
+    let clean = str.replace(/[^0-9]/g, "");
+    if (!clean) return "-";
+
+    return Number(clean).toLocaleString("en-US");
 }
 
 // ================= HALAMAN SWITCHER ===================
