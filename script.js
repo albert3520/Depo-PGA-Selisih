@@ -1,10 +1,18 @@
+// ========== Deposit ==========
+let totalIDN_All = 0;
+let totalMotion_All = 0;
+
+// ========== Withdraw ==========
+let totalPembukuan_All = 0;
+let totalWithdrawMotion_All = 0;
+
 // ========== Fungsi Deposit ==========
 function readCSV(file, callback) {
     const reader = new FileReader();
     reader.onload = function(e) {
         const text = e.target.result;
 
-        // Parsing CSV yang mendukung data "1,234"
+        // Parsing CSV
         const rows = text.split(/\r?\n/).map(line => {
             const regex = /("([^"]|"")*"|[^,]+|),?/g;
             let matches = [...line.matchAll(regex)];
@@ -35,6 +43,9 @@ function extractIdFromDescription(text) {
 }
 
 function processFiles() {
+    totalIDN_All = 0;
+    totalMotion_All = 0;
+    
     const file1 = document.getElementById("file1").files[0];
     const file2List = document.getElementById("file2").files;
 
@@ -51,12 +62,15 @@ function processFiles() {
             const row = file1Rows[i];
             const id = row[0];
             const nominal = row[7];
+            if (!isNaN(Number(String(nominal).replace(/[^0-9]/g, "")))) {
+            totalIDN_All += Number(String(nominal).replace(/[^0-9]/g, ""));
+        }
             if (id) idnMap[id.trim()] = nominal ? formatNumber(nominal) : "";
         }
 
         // ====== FILE MOTION XLSX ======
         let motionMap = {};
-        let dateMismatchList = [];   // <= fitur baru
+        let dateMismatchList = [];
         let filesProcessed = 0;
 
         for (let f = 0; f < file2List.length; f++) {
@@ -69,25 +83,28 @@ function processFiles() {
                     const desc = row[5];     // kolom F
                     const extractedId = extractIdFromDescription(desc);
                     const nominal = row[14]; // kolom O
+                    if (!isNaN(Number(String(nominal).replace(/[^0-9]/g, "")))) {
+                        totalMotion_All += Number(String(nominal).replace(/[^0-9]/g, ""));
+                    }
 
                     // ====== CEK TANGGAL ======
                     const tA = row[0];  // Kolom A
                     const tP = row[15]; // Kolom P
 
                     if (tA && tP) {
-                        let dateA = String(tA).split(" ")[0];  // YYYY-MM-DD
+                        let dateA = String(tA).split(" ")[0];
                         let dateP = String(tP).split(" ")[0];
 
                         if (dateA !== dateP) {
                             dateMismatchList.push({
                                 id: extractedId || "-",
                                 tanggalA: tA,
-                                tanggalP: tP
+                                tanggalP: tP,
+                                nominalMotion: nominal
                             });
                         }
                     }
 
-                    // ====== SIMPAN NOMINAL ======
                     if (extractedId) {
                         motionMap[extractedId] = nominal ? formatNumber(nominal) : "";
                     }
@@ -131,9 +148,25 @@ function compareResults(idnMap, motionMap, dateMismatchList) {
 function showResult(miss1, miss2, dateMismatch) {
     let html = "<h3>Hasil Anomali Deposit</h3>";
 
-    // ==============================
-    //        TABEL MISS 1
-    // ==============================
+    // TABEL TOTAL NOMINAL IDN & MOTION
+        let selisihTotal = totalIDN_All - totalMotion_All;
+        html += `
+            <table>
+                <tr>
+                    <th>Total IDN</th>
+                    <th>Total Motion</th>
+                    <th>Selisih</th>
+                </tr>
+                <tr>
+                    <td>${formatNominal(totalIDN_All)}</td>
+                    <td>${formatNominal(totalMotion_All)}</td>
+                    <td>${formatNominal(selisihTotal)}</td>
+                </tr>
+            </table>
+            <br>
+        `;
+
+    // TABEL MISS 1
     html += "<h4>ID Ada di IDN tapi Tidak Ada di Motion</h4>";
 
     if (miss1.length === 0) {
@@ -152,8 +185,10 @@ function showResult(miss1, miss2, dateMismatch) {
         `;
 
         miss1.forEach(a => {
-            if (a.idn !== "-") totalIDN_1 += Number(String(a.idn).replace(/[^0-9]/g, ""));
-            if (a.motion !== "-") totalMotion_1 += Number(String(a.motion).replace(/[^0-9]/g, ""));
+            if (a.idn !== "-")
+                totalIDN_1 += Number(String(a.idn).replace(/[^0-9]/g, ""));
+            if (a.motion !== "-")
+                totalMotion_1 += Number(String(a.motion).replace(/[^0-9]/g, ""));
 
             table1 += `
                 <tr>
@@ -176,16 +211,12 @@ function showResult(miss1, miss2, dateMismatch) {
         html += table1;
     }
 
-
-    // ==============================
-    //        TABEL MISS 2
-    // ==============================
+    // TABEL MISS 2
     html += "<h4>ID Ada di Motion tapi Tidak Ada di IDN</h4>";
 
     if (miss2.length === 0) {
         html += `<p><i>Tidak ada anomali</i></p>`;
     } else {
-
         let totalIDN_2 = 0;
         let totalMotion_2 = 0;
 
@@ -199,8 +230,10 @@ function showResult(miss1, miss2, dateMismatch) {
         `;
 
         miss2.forEach(a => {
-            if (a.idn !== "-") totalIDN_2 += Number(String(a.idn).replace(/[^0-9]/g, ""));
-            if (a.motion !== "-") totalMotion_2 += Number(String(a.motion).replace(/[^0-9]/g, ""));
+            if (a.idn !== "-")
+                totalIDN_2 += Number(String(a.idn).replace(/[^0-9]/g, ""));
+            if (a.motion !== "-")
+                totalMotion_2 += Number(String(a.motion).replace(/[^0-9]/g, ""));
 
             table2 += `
                 <tr>
@@ -223,10 +256,7 @@ function showResult(miss1, miss2, dateMismatch) {
         html += table2;
     }
 
-
-    // ==============================
-    //      DATE MISMATCH
-    // ==============================
+    // PERBEDAAN TANGGAL DIPROSES
     html += "<h4>Perbedaan Tanggal Diproses</h4>";
     html += dateMismatchToTable(dateMismatch);
 
@@ -249,16 +279,34 @@ function arrayToTable(arr) {
 }
 
 function dateMismatchToTable(arr) {
-    if (arr.length === 0) return "<p><i>Tidak ada anomali</i></p>";
+    if (arr.length === 0)
+        return "<p><i>Tidak ada anomali</i></p>";
 
-    let html = "<table><tr><th>ID</th><th>Tanggal Dibuat</th><th>Tanggal Dibayar</th></tr>";
+    let html = `
+        <table>
+            <tr>
+                <th>ID</th>
+                <th>Tanggal IDN</th>
+                <th>Tanggal Motion</th>
+                <th>Nominal</th>
+            </tr>
+    `;
 
     arr.forEach(a => {
-        html += `<tr>
-            <td>${a.id}</td>
-            <td>${a.tanggalA}</td>
-            <td>${a.tanggalP}</td>
-        </tr>`;
+        let nominalValue = "-";
+
+        if (a.nominalMotion && a.nominalMotion !== "-") {
+            nominalValue = formatNominal(a.nominalMotion);
+        }
+
+        html += `
+            <tr>
+                <td>${a.id}</td>
+                <td>${a.tanggalA}</td>
+                <td>${a.tanggalP}</td>
+                <td>${nominalValue}</td>
+            </tr>
+        `;
     });
 
     html += "</table>";
@@ -275,6 +323,9 @@ function formatNumber(num) {
 
 // ========== Fungsi Withdraw ==========
 function processWithdraw() {
+    totalPembukuan_All = 0;
+    totalWithdrawMotion_All = 0;
+    
     const file1 = document.getElementById("wfile1").files[0];
     const file2 = document.getElementById("wfile2").files;
 
@@ -295,14 +346,19 @@ function processWithdraw() {
             if (!username) continue;
 
             const u = String(username).trim();
-            if (u.toLowerCase() === "username") continue; // skip header
+            if (u.toLowerCase() === "username") continue;
 
-            // Bersihkan jadi angka saja
             const clean = String(nominal).replace(/[^0-9]/g, "");
-            if (!clean) continue; // jangan masukkan nominal kosong → menghindari 0 bug
+            if (!clean) continue;
 
             if (!idnData[u]) idnData[u] = [];
             idnData[u].push(Number(clean));
+        
+            const nominalPembukuan = row[7];
+
+            if (!isNaN(Number(String(nominalPembukuan).replace(/[^0-9]/g, "")))) {
+                totalPembukuan_All += Number(String(nominalPembukuan).replace(/[^0-9]/g, ""));
+            }
         }
 
         // ========== BACA FILE 2 (XLSX) ==========
@@ -329,6 +385,12 @@ function processWithdraw() {
 
                     if (!motionData[firstWord]) motionData[firstWord] = [];
                     motionData[firstWord].push(Number(clean2));
+                
+                    const nominalMotionW = row[9];
+
+                    if (!isNaN(Number(String(nominalMotionW).replace(/[^0-9]/g, "")))) {
+                        totalWithdrawMotion_All += Number(String(nominalMotionW).replace(/[^0-9]/g, ""));
+                    }
                 }
 
                 processed++;
@@ -351,11 +413,9 @@ function compareWithdraw(idnData, motionData) {
 
         if (list1.length !== list2.length) {
 
-            // copy list utk saling hapus nominal yang match
             let temp1 = [...list1];
             let temp2 = [...list2];
 
-            // hapus nominal yg cocok
             for (let i = temp1.length - 1; i >= 0; i--) {
                 const idx = temp2.indexOf(temp1[i]);
                 if (idx !== -1) {
@@ -379,6 +439,23 @@ function compareWithdraw(idnData, motionData) {
 
 function showWithdrawResult(list) {
     let html = "<h3>Hasil Anomali Withdraw</h3>";
+    let selisihTotal = totalPembukuan_All - totalWithdrawMotion_All;
+
+    html += `
+        <table>
+            <tr>
+                <th>Total Pembukuan</th>
+                <th>Total Motion</th>
+                <th>Selisih</th>
+            </tr>
+            <tr>
+                <td>${formatNominal(totalPembukuan_All)}</td>
+                <td>${formatNominal(totalWithdrawMotion_All)}</td>
+                <td>${formatNominal(selisihTotal)}</td>
+            </tr>
+        </table>
+        <br>
+    `;
 
     if (list.length === 0) {
         html += "<p><i>Tidak ada anomali</i></p>";
@@ -386,6 +463,7 @@ function showWithdrawResult(list) {
         return;
     }
 
+    html += "<h4>ID Anomali</h4>";
     html += `
     <table>
         <tr>
@@ -402,7 +480,6 @@ function showWithdrawResult(list) {
 
     list.forEach(a => {
 
-        // hitung total bawah
         a.missingFromFile2.forEach(v => totalPembukuan += Number(v));
         a.missingFromFile1.forEach(v => totalMotion += Number(v));
 
@@ -429,7 +506,6 @@ function showWithdrawResult(list) {
         `;
     });
 
-    // ====== TOTAL DI BAWAH TABEL (di kolom masing-masing) ======
     html += `
         <tr style="font-weight:bold; background:#f5f5f5;">
             <td colspan="3">TOTAL</td>
@@ -446,10 +522,8 @@ function showWithdrawResult(list) {
 function formatNominal(value) {
     if (value === null || value === undefined) return "-";
 
-    // ubah ke string dulu
     let str = String(value);
 
-    // ambil angka murni
     let clean = str.replace(/[^0-9]/g, "");
     if (!clean) return "-";
 
@@ -467,7 +541,6 @@ function showPage(page) {
         document.getElementById("page-withdraw").style.display = "block";
     }
 }
-// ======================================================
 
 // ========== POPUP HELP ==========
 function openHelp() {
