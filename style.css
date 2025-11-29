@@ -248,3 +248,39 @@ button[onclick*="Motion_Tidak_Di_IDN"] {
         margin-bottom: 0;
     }
 }
+
+/* ========== FOOTER STYLES ========== */
+.footer {
+    margin-top: 50px;
+    padding: 20px 0;
+    text-align: center;
+    border-top: 1px solid #e0e0e0;
+    background: #f8f9fa;
+    border-radius: 10px;
+}
+
+.footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+.footer-text {
+    color: #6c757d;
+    font-size: 14px;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.footer-creator {
+    color: #1a73e8;
+    font-weight: 600;
+    font-size: 15px;
+    margin-top: 5px;
+}
+
+.footer-version {
+    color: #888;
+    font-size: 12px;
+    margin-top: 3px;
+}
