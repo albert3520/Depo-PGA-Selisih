@@ -171,6 +171,14 @@ function compareResults(idnMap, motionMap, idnRefMap, motionRefMap, dateMismatch
         }
     });
 
+    // Simpan data untuk download Excel
+    window.depositAnomalyData = {
+        miss1: onlyInIDN,
+        miss2: onlyInMotion,
+        idnRefMap: idnRefMap,
+        motionRefMap: motionRefMap
+    };
+
     showResult(onlyInIDN, onlyInMotion, dateMismatchList);
 }
 
@@ -196,7 +204,22 @@ function showResult(miss1, miss2, dateMismatch) {
     `;
 
     // TABEL MISS 1 - ID Ada di IDN tapi Tidak Ada di Motion
-    html += "<h4>ID Ada di IDN tapi Tidak Ada di Motion</h4>";
+    html += `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h4 style="margin: 0;">ID Ada di IDN tapi Tidak Ada di Motion</h4>
+            ${miss1.length > 0 ? `
+                <button onclick="downloadDepositExcel(
+                    window.depositAnomalyData.miss1, 
+                    [],
+                    window.depositAnomalyData.idnRefMap,
+                    window.depositAnomalyData.motionRefMap,
+                    'IDN_Tidak_Di_Motion'
+                )" style="background: #28a745; margin: 0;">
+                    Download Excel (IDN)
+                </button>
+            ` : ''}
+        </div>
+    `;
 
     if (miss1.length === 0) {
         html += `<p><i>Tidak ada anomali</i></p>`;
@@ -238,7 +261,22 @@ function showResult(miss1, miss2, dateMismatch) {
     }
 
     // TABEL MISS 2 - ID Ada di Motion tapi Tidak Ada di IDN
-    html += "<h4>ID Ada di Motion tapi Tidak Ada di IDN</h4>";
+    html += `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; margin-top: 30px;">
+            <h4 style="margin: 0;">ID Ada di Motion tapi Tidak Ada di IDN</h4>
+            ${miss2.length > 0 ? `
+                <button onclick="downloadDepositExcel(
+                    [],
+                    window.depositAnomalyData.miss2,
+                    window.depositAnomalyData.idnRefMap,
+                    window.depositAnomalyData.motionRefMap,
+                    'Motion_Tidak_Di_IDN'
+                )" style="background: #28a745; margin: 0;">
+                    Download Excel (Motion)
+                </button>
+            ` : ''}
+        </div>
+    `;
 
     if (miss2.length === 0) {
         html += `<p><i>Tidak ada anomali</i></p>`;
@@ -279,11 +317,139 @@ function showResult(miss1, miss2, dateMismatch) {
         html += table2;
     }
 
+    // TOMBOL DOWNLOAD SEMUA DATA
+    if ((miss1.length > 0 || miss2.length > 0)) {
+        html += `
+            <div style="text-align: center; margin-top: 30px;">
+                <button onclick="downloadDepositExcel(
+                    window.depositAnomalyData.miss1, 
+                    window.depositAnomalyData.miss2,
+                    window.depositAnomalyData.idnRefMap,
+                    window.depositAnomalyData.motionRefMap,
+                    'All_Anomalies'
+                )" style="background: #17a2b8;">
+                    Download Semua IDN dan Motion
+                </button>
+            </div>
+        `;
+    }
+
     // PERBEDAAN TANGGAL DIPROSES
     html += "<h4>Perbedaan Tanggal Diproses</h4>";
     html += dateMismatchToTable(dateMismatch);
 
     document.getElementById("result").innerHTML = html;
+}
+
+// ========== Fungsi Download Deposit ==========
+function downloadDepositExcel(miss1, miss2, idnRefMap, motionRefMap, sheetType = 'All_Anomalies') {
+    if (miss1.length === 0 && miss2.length === 0) {
+        alert("Tidak ada data anomali untuk di-download.");
+        return;
+    }
+
+    let csvData = '';
+    let filename = '';
+
+    const headers = 'ID Invoice,Ref.no,Status,By,Nama,Tgl Request,Tgl Proses,Nominal,Bank Tujuan\n';
+
+    // Data untuk ID di IDN tapi tidak di Motion
+    if ((sheetType === 'IDN_Tidak_Di_Motion' || sheetType === 'All_Anomalies') && miss1.length > 0) {
+        csvData += headers;
+        miss1.forEach(item => {
+            const row = [
+                item.id,
+                item.refIDN,
+                'paid',
+                'PGA',
+                item.id,
+                getRequestDate(item.id),
+                getProcessDate(item.id),
+                `"${formatExcelNumber(item.idn)}"`,
+                'PGA:QRIS'
+            ].join(',');
+            csvData += row + '\n';
+        });
+        
+        if (sheetType === 'IDN_Tidak_Di_Motion') {
+            filename = `Deposit_IDN_Anomali_${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.csv`;
+        }
+    }
+
+    // Data untuk ID di Motion tapi tidak di IDN
+    if ((sheetType === 'Motion_Tidak_Di_IDN' || sheetType === 'All_Anomalies') && miss2.length > 0) {
+        if (csvData !== '' && sheetType === 'All_Anomalies') {
+            csvData += '\n';
+        }
+        
+        csvData += headers;
+        miss2.forEach(item => {
+            const row = [
+                item.id,
+                item.refMotion,
+                'paid',
+                'PGA',
+                item.id,
+                getRequestDate(item.id),
+                getProcessDate(item.id),
+                `"${formatExcelNumber(item.motion)}"`,
+                'PGA:QRIS'
+            ].join(',');
+            csvData += row + '\n';
+        });
+        
+        if (sheetType === 'Motion_Tidak_Di_IDN') {
+            filename = `Deposit_Motion_Anomali_${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.csv`;
+        }
+    }
+
+    if (sheetType === 'All_Anomalies') {
+        filename = `Deposit_Anomali_${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.csv`;
+    }
+
+    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    
+    if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+}
+
+function getRequestDate(id) {
+    return "28-11-2025 23:58:46";
+}
+
+function getProcessDate(id) {
+    return "28-11-2025 23:59:22";
+}
+
+function formatExcelNumber(numStr) {
+    if (!numStr || numStr === "-" || numStr === "") return "0";
+    
+    if (String(numStr).includes(',')) {
+        return String(numStr);
+    }
+    
+    let str = String(numStr).replace(/[^\d]/g, "");
+    
+    let result = '';
+    let count = 0;
+    
+    for (let i = str.length - 1; i >= 0; i--) {
+        if (count > 0 && count % 3 === 0) {
+            result = ',' + result;
+        }
+        result = str[i] + result;
+        count++;
+    }
+    
+    return result || "0";
 }
 
 function arrayToTable(arr) {
@@ -360,7 +526,7 @@ function processWithdraw() {
     // ========== BACA FILE 1 (XLSX) ==========
     readXLSX(file1, sheet1 => {
     let idnData = {};
-    let idnRefMap = {}; // NEW: Simpan referensi dari file1 (Kolom A)
+    let idnRefMap = {};
 
     for (let i = 1; i < sheet1.length; i++) {
         const row = sheet1[i];
