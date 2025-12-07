@@ -6,6 +6,12 @@ let totalMotion_All = 0;
 let totalPembukuan_All = 0;
 let totalWithdrawMotion_All = 0;
 
+// ========== Tanggal ==========
+let depositDateData = {
+    idnDates: {},
+    motionDates: {}
+};
+
 // ========== Fungsi Deposit ==========
 function readCSV(file, callback) {
     const reader = new FileReader();
@@ -45,7 +51,11 @@ function extractIdFromDescription(text) {
 function processFiles() {
     totalIDN_All = 0;
     totalMotion_All = 0;
-    
+    depositDateData = {
+        idnDates: {},
+        motionDates: {}
+    };
+
     const file1 = document.getElementById("file1").files[0];
     const file2List = document.getElementById("file2").files;
 
@@ -54,26 +64,37 @@ function processFiles() {
         return;
     }
 
-    // ====== FILE IDN CSV ======
-    readCSV(file1, file1Rows => {
-        let idnMap = {};
-        let idnRefMap = {};
+// ====== FILE IDN CSV ======
+readCSV(file1, file1Rows => {
+    let idnMap = {};
+    let idnRefMap = {};
 
-        for (let i = 1; i < file1Rows.length; i++) {
-            const row = file1Rows[i];
-            const id = row[0];
-            const nominal = row[7];
-            const noRef = row[1];
+    for (let i = 1; i < file1Rows.length; i++) {
+        const row = file1Rows[i];
+        const id = row[0];
+        const nominal = row[7];
+        const noRef = row[1];
+        const tglRequest = row[5];
+        const tglProses = row[6];
+
+        if (!isNaN(Number(String(nominal).replace(/[^0-9]/g, "")))) {
+            totalIDN_All += Number(String(nominal).replace(/[^0-9]/g, ""));
+        }
+        
+        if (id) {
+            const cleanId = id.trim();
+            idnMap[cleanId] = nominal ? formatNumber(nominal) : "";
+            idnRefMap[cleanId] = noRef || "";
             
-            if (!isNaN(Number(String(nominal).replace(/[^0-9]/g, "")))) {
-                totalIDN_All += Number(String(nominal).replace(/[^0-9]/g, ""));
-            }
-            
-            if (id) {
-                idnMap[id.trim()] = nominal ? formatNumber(nominal) : "";
-                idnRefMap[id.trim()] = noRef || "";
+            // SIMPAN TANGGAL DARI FILE IDN
+            if (tglRequest || tglProses) {
+                depositDateData.idnDates[cleanId] = {
+                    requestDate: parseDate(tglRequest),
+                    processDate: parseDate(tglProses)
+                };
             }
         }
+    }
 
         // ====== FILE MOTION XLSX ======
         let motionMap = {};
@@ -115,9 +136,14 @@ function processFiles() {
                         }
                     }
 
-                    if (extractedId) {
+                         if (extractedId) {
                         motionMap[extractedId] = nominal ? formatNumber(nominal) : "";
                         motionRefMap[extractedId] = noRefMotion;
+                        
+                        depositDateData.motionDates[extractedId] = {
+                            requestDate: parseDate(tA),
+                            processDate: parseDate(tP)
+                        };
                     }
                 }
 
@@ -176,7 +202,8 @@ function compareResults(idnMap, motionMap, idnRefMap, motionRefMap, dateMismatch
         miss1: onlyInIDN,
         miss2: onlyInMotion,
         idnRefMap: idnRefMap,
-        motionRefMap: motionRefMap
+        motionRefMap: motionRefMap,
+        dateData: depositDateData
     };
 
     showResult(onlyInIDN, onlyInMotion, dateMismatchList);
@@ -317,23 +344,6 @@ function showResult(miss1, miss2, dateMismatch) {
         html += table2;
     }
 
-    // TOMBOL DOWNLOAD SEMUA DATA
-    if ((miss1.length > 0 || miss2.length > 0)) {
-        html += `
-            <div style="text-align: center; margin-top: 30px;">
-                <button onclick="downloadDepositExcel(
-                    window.depositAnomalyData.miss1, 
-                    window.depositAnomalyData.miss2,
-                    window.depositAnomalyData.idnRefMap,
-                    window.depositAnomalyData.motionRefMap,
-                    'All_Anomalies'
-                )" style="background: #17a2b8;">
-                    Download Semua IDN dan Motion
-                </button>
-            </div>
-        `;
-    }
-
     // PERBEDAAN TANGGAL DIPROSES
     html += "<h4>Perbedaan Tanggal Diproses</h4>";
     html += dateMismatchToTable(dateMismatch);
@@ -353,18 +363,55 @@ function downloadDepositExcel(miss1, miss2, idnRefMap, motionRefMap, sheetType =
 
     const headers = 'ID Invoice,Ref.no,Status,By,Nama,Tgl Request,Tgl Proses,Nominal,Bank Tujuan\n';
 
+    function getDateForId(id, dataType, dateType) {
+        const dateData = window.depositAnomalyData.dateData;
+        
+        if (dataType === 'idn' && dateData.idnDates[id]) {
+            if (dateType === 'request' && dateData.idnDates[id].requestDate) {
+                return formatDateForExcel(dateData.idnDates[id].requestDate);
+            } else if (dateType === 'process' && dateData.idnDates[id].processDate) {
+                return formatDateForExcel(dateData.idnDates[id].processDate);
+            }
+        } else if (dataType === 'motion' && dateData.motionDates[id]) {
+            if (dateType === 'request' && dateData.motionDates[id].requestDate) {
+                return formatDateForExcel(dateData.motionDates[id].requestDate);
+            } else if (dateType === 'process' && dateData.motionDates[id].processDate) {
+                return formatDateForExcel(dateData.motionDates[id].processDate);
+            }
+        }
+        
+        if (dataType === 'idn' && dateData.motionDates[id]) {
+            if (dateType === 'request' && dateData.motionDates[id].requestDate) {
+                return formatDateForExcel(dateData.motionDates[id].requestDate);
+            } else if (dateType === 'process' && dateData.motionDates[id].processDate) {
+                return formatDateForExcel(dateData.motionDates[id].processDate);
+            }
+        } else if (dataType === 'motion' && dateData.idnDates[id]) {
+            if (dateType === 'request' && dateData.idnDates[id].requestDate) {
+                return formatDateForExcel(dateData.idnDates[id].requestDate);
+            } else if (dateType === 'process' && dateData.idnDates[id].processDate) {
+                return formatDateForExcel(dateData.idnDates[id].processDate);
+            }
+        }
+        
+        return formatDateForExcel(new Date());
+    }
+
     // Data untuk ID di IDN tapi tidak di Motion
     if ((sheetType === 'IDN_Tidak_Di_Motion' || sheetType === 'All_Anomalies') && miss1.length > 0) {
         csvData += headers;
         miss1.forEach(item => {
+            const requestDate = getDateForId(item.id, 'idn', 'request');
+            const processDate = getDateForId(item.id, 'idn', 'process');
+            
             const row = [
                 item.id,
                 item.refIDN,
                 'paid',
                 'PGA',
                 item.id,
-                getRequestDate(item.id),
-                getProcessDate(item.id),
+                requestDate,
+                processDate,
                 `"${formatExcelNumber(item.idn)}"`,
                 'PGA:QRIS'
             ].join(',');
@@ -384,14 +431,17 @@ function downloadDepositExcel(miss1, miss2, idnRefMap, motionRefMap, sheetType =
         
         csvData += headers;
         miss2.forEach(item => {
+            const requestDate = getDateForId(item.id, 'motion', 'request');
+            const processDate = getDateForId(item.id, 'motion', 'process');
+            
             const row = [
                 item.id,
                 item.refMotion,
                 'paid',
                 'PGA',
                 item.id,
-                getRequestDate(item.id),
-                getProcessDate(item.id),
+                requestDate,
+                processDate,
                 `"${formatExcelNumber(item.motion)}"`,
                 'PGA:QRIS'
             ].join(',');
@@ -421,12 +471,62 @@ function downloadDepositExcel(miss1, miss2, idnRefMap, motionRefMap, sheetType =
     }
 }
 
-function getRequestDate(id) {
-    return "28-11-2025 23:58:46";
+function parseDate(dateStr) {
+    if (!dateStr) return null;
+    
+    dateStr = String(dateStr).split(" ")[0];
+    
+    const formats = [
+        /\d{1,2}\/\d{1,2}\/\d{4}/,  // D/M/YYYY atau DD/MM/YYYY
+        /\d{1,2}-\d{1,2}-\d{4}/,    // D-M-YYYY atau DD-MM-YYYY
+        /\d{4}-\d{1,2}-\d{1,2}/,    // YYYY-MM-DD
+        /\d{4}\/\d{1,2}\/\d{1,2}/   // YYYY/MM/DD
+    ];
+    
+    let match = null;
+    for (const format of formats) {
+        match = dateStr.match(format);
+        if (match) break;
+    }
+    
+    if (!match) return null;
+    
+    const datePart = match[0];
+    
+    if (datePart.includes('/')) {
+        const parts = datePart.split('/');
+        if (parts[0].length === 4) {
+            // YYYY/MM/DD
+            return new Date(parts[0], parts[1] - 1, parts[2]);
+        } else {
+            // DD/MM/YYYY atau D/M/YYYY
+            return new Date(parts[2], parts[1] - 1, parts[0]);
+        }
+    } else if (datePart.includes('-')) {
+        const parts = datePart.split('-');
+        if (parts[0].length === 4) {
+            // YYYY-MM-DD
+            return new Date(parts[0], parts[1] - 1, parts[2]);
+        } else {
+            // DD-MM-YYYY atau D-M-YYYY
+            return new Date(parts[2], parts[1] - 1, parts[0]);
+        }
+    }
+    
+    return null;
 }
 
-function getProcessDate(id) {
-    return "28-11-2025 23:59:22";
+function formatDateForExcel(dateObj) {
+    if (!dateObj) return "01-01-2025 00:00:00";
+    
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const year = dateObj.getFullYear();
+    const hours = String(dateObj.getHours()).padStart(2, '0');
+    const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+    const seconds = String(dateObj.getSeconds()).padStart(2, '0');
+    
+    return `${day}-${month}-${year} ${hours}:${minutes}:${seconds}`;
 }
 
 function formatExcelNumber(numStr) {
