@@ -860,3 +860,172 @@ window.onclick = function(event) {
         modal.style.display = "none";
     }
 };
+
+// ========== FLOATING BUTTON FUNCTIONS ==========
+let floatingMenuVisible = false;
+let hoverTimeout;
+
+function toggleFloatingMenu() {
+    const menu = document.getElementById('floating-menu');
+    const logo = document.getElementById('floating-logo');
+    floatingMenuVisible = !floatingMenuVisible;
+    
+    if (floatingMenuVisible) {
+        menu.classList.add('show');
+        logo.style.transform = 'scale(1.1) rotate(5deg)';
+        logo.style.filter = 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4)) brightness(1.1)';
+        // Tambahkan border animasi
+        addLogoBorder();
+    } else {
+        menu.classList.remove('show');
+        logo.style.transform = 'scale(1)';
+        logo.style.filter = 'drop-shadow(0 2px 5px rgba(0, 0, 0, 0.3))';
+        // Hapus border animasi
+        removeLogoBorder();
+    }
+}
+
+function addLogoBorder() {
+    const button = document.getElementById('floating-button');
+    const existingBorder = document.querySelector('.logo-border');
+    
+    if (!existingBorder) {
+        const border = document.createElement('div');
+        border.className = 'logo-border';
+        button.appendChild(border);
+    }
+}
+
+function removeLogoBorder() {
+    const border = document.querySelector('.logo-border');
+    if (border) {
+        border.remove();
+    }
+}
+
+function navigateToLink(url) {
+    // Tutup menu terlebih dahulu
+    floatingMenuVisible = false;
+    const menu = document.getElementById('floating-menu');
+    const logo = document.getElementById('floating-logo');
+    
+    // Animasi sebelum navigasi
+    logo.style.transform = 'scale(0.9)';
+    menu.classList.remove('show');
+    removeLogoBorder();
+    
+    // Reset transform setelah animasi
+    setTimeout(() => {
+        logo.style.transform = 'scale(1)';
+        logo.style.filter = 'drop-shadow(0 2px 5px rgba(0, 0, 0, 0.3))';
+    }, 150);
+    
+    // Buka link di tab baru
+    setTimeout(() => {
+        window.open(url, '_blank');
+    }, 200);
+}
+
+// Tambahkan efek hover pada button
+document.getElementById('floating-button').addEventListener('mouseenter', function() {
+    clearTimeout(hoverTimeout);
+    const logo = document.getElementById('floating-logo');
+    if (!floatingMenuVisible) {
+        logo.style.transform = 'scale(1.1) rotate(5deg)';
+        logo.style.filter = 'drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4)) brightness(1.05)';
+    }
+});
+
+document.getElementById('floating-button').addEventListener('mouseleave', function() {
+    const logo = document.getElementById('floating-logo');
+    if (!floatingMenuVisible) {
+        hoverTimeout = setTimeout(() => {
+            logo.style.transform = 'scale(1)';
+            logo.style.filter = 'drop-shadow(0 2px 5px rgba(0, 0, 0, 0.3))';
+        }, 100);
+    }
+});
+
+// Tutup menu floating saat klik di luar
+document.addEventListener('click', function(event) {
+    const floatingContainer = document.getElementById('floating-button-container');
+    const menu = document.getElementById('floating-menu');
+    const logo = document.getElementById('floating-logo');
+    
+    if (!floatingContainer.contains(event.target) && floatingMenuVisible) {
+        floatingMenuVisible = false;
+        menu.classList.remove('show');
+        logo.style.transform = 'scale(1)';
+        logo.style.filter = 'drop-shadow(0 2px 5px rgba(0, 0, 0, 0.3))';
+        removeLogoBorder();
+    }
+});
+
+// Tutup menu saat tekan ESC
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape' && floatingMenuVisible) {
+        floatingMenuVisible = false;
+        const menu = document.getElementById('floating-menu');
+        const logo = document.getElementById('floating-logo');
+        
+        menu.classList.remove('show');
+        logo.style.transform = 'scale(1)';
+        logo.style.filter = 'drop-shadow(0 2px 5px rgba(0, 0, 0, 0.3))';
+        removeLogoBorder();
+    }
+});
+
+// Tambahkan badge notifikasi (opsional)
+function addBadgeToButton(count = 1) {
+    const button = document.getElementById('floating-button');
+    const existingBadge = document.getElementById('floating-badge');
+    
+    if (existingBadge) {
+        existingBadge.remove();
+    }
+    
+    if (count > 0) {
+        const badge = document.createElement('div');
+        badge.id = 'floating-badge';
+        badge.textContent = count > 9 ? '9+' : count;
+        badge.title = `${count} notifikasi`;
+        button.appendChild(badge);
+    }
+}
+
+// Inisialisasi
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('floating-menu').classList.remove('show');
+    
+    // Pastikan logo memiliki filter awal
+    const logo = document.getElementById('floating-logo');
+    logo.style.filter = 'drop-shadow(0 2px 5px rgba(0, 0, 0, 0.3))';
+    
+    // Contoh: tambahkan badge dengan 3 notifikasi (opsional)
+    // addBadgeToButton(3);
+});
+
+// Fallback jika logo tidak ditemukan
+document.getElementById('floating-logo').addEventListener('error', function() {
+    console.error('Logo tidak ditemukan! Pastikan file "logo-game.jpg" ada di folder yang sama.');
+    this.style.display = 'none';
+    
+    // Tampilkan placeholder teks
+    const button = document.getElementById('floating-button');
+    const placeholder = document.createElement('div');
+    placeholder.className = 'logo-placeholder';
+    placeholder.textContent = 'LOGO';
+    placeholder.style.cssText = `
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #1a73e8, #0d5fcc);
+        color: white;
+        font-weight: bold;
+        font-size: 18px;
+        border-radius: 50%;
+    `;
+    button.appendChild(placeholder);
+});
